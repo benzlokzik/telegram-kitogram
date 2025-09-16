@@ -22,7 +22,7 @@ class ModelConfig:
 
     @property
     def train_path(self) -> pathlib.Path:
-        return self.data_dir / self.train_name
+        return (self.data_dir / self.train_name).absolute()
 
 
 class SpamModel(ABC):
