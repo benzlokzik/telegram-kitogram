@@ -1,0 +1,58 @@
+[project]
+name = "dialogue-kitogram"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["fasttext>=0.9.3"]
+license = { file = "LICENSE" }
+
+
+[dependency-groups]
+dev = [
+    "marimo[recommended]>=0.15.5",
+    "notebook>=7.3.2",
+    "ruff>=0.13.0",
+]
+
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "RUF001",
+    "RUF002",
+    "BLE001",
+    "ANN001",
+    "ERA001",
+    "ERA",
+    "D",
+    "G",
+    "PTH",
+    "TRY301",
+    "RUF003",
+    "UP007",
+    "N802",
+    "T201",
+]
+
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = false
+docstring-code-line-length = "dynamic"
+
+[tool.uv.sources]
+fish_speech = { git = "https://github.com/fishaudio/fish-speech" }
+torch = [{ index = "pytorch-cu124" }]
+torchvision = [{ index = "pytorch-cu124" }]
+
+[tool.marimo.runtime]
+pythonpath = ["."]
+
+[tool.marimo.save]
+autosave_delay = 1000
+autosave = "after_delay"
+format_on_save = true
