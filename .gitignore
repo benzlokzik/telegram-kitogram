@@ -199,6 +199,9 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# Bot database
+bot_messages.db
+
 # Flask stuff:
 instance/
 .webassets-cache
