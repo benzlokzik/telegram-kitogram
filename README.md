@@ -34,9 +34,19 @@ A Telegram bot that automatically detects and removes bot-generated messages usi
    uv sync
    ```
 
-3. **Set Environment Variable**:
+3. **Configure Environment**:
+   ```bash
+   # Copy the example configuration file
+   cp .env.example .env
+   
+   # Edit .env file and set your bot token
+   # TELEGRAM_BOT_TOKEN=your_bot_token_here
+   ```
+   
+   Alternatively, set environment variables directly:
    ```bash
    export TELEGRAM_BOT_TOKEN=your_bot_token_here
+   export SPAM_THRESHOLD=0.95
    ```
 
 4. **Run the Bot**:

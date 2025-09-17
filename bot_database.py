@@ -4,12 +4,14 @@ from datetime import datetime, timezone
 
 import aiosqlite
 
+from config import get_db_path
+
 
 class BotMessageDatabase:
     """SQLite database for storing bot message detection records."""
 
-    def __init__(self, db_path: str = "bot_messages.db") -> None:
-        self.db_path = db_path
+    def __init__(self, db_path: str | None = None) -> None:
+        self.db_path = db_path or get_db_path()
 
     async def init_database(self) -> None:
         """Initialize the database and create tables if they don't exist."""

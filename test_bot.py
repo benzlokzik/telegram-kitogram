@@ -115,7 +115,7 @@ async def main() -> None:
         logger.success("All tests passed!")
         logger.info("To run the bot:")
         logger.info("1. Get a bot token from @BotFather on Telegram")
-        logger.info("2. Set environment variable: export TELEGRAM_BOT_TOKEN=your_token")
+        logger.info("2. Copy .env.example to .env and set your bot token")
         logger.info("3. Run: python main.py bot")
     else:
         logger.error("Some tests failed!")

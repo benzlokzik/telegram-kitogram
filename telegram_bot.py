@@ -1,15 +1,16 @@
 """Telegram bot for detecting and deleting bot messages using spam detection."""
 
 import asyncio
-import os
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message
 from loguru import logger
 
+import config  # noqa: F401
 import log_config  # noqa: F401
 from bot_database import BotMessageDatabase
+from config import get_spam_threshold, get_telegram_token
 from dialogue_kitogram.src.fastspam.ft_model import FastTextSpamModel, ModelConfig
 
 
@@ -149,13 +150,15 @@ class SpamDetectionBot:
 async def main() -> None:
     """Main function to run the bot."""
     # Get bot token from environment variable
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    token = get_telegram_token()
     if not token:
-        logger.error("Please set TELEGRAM_BOT_TOKEN environment variable")
+        logger.error("TELEGRAM_BOT_TOKEN not found in environment")
+        logger.error("Please copy .env.example to .env and set your bot token")
         return
 
     # Create and start bot
-    bot = SpamDetectionBot(token, spam_threshold=0.95)
+    spam_threshold = get_spam_threshold()
+    bot = SpamDetectionBot(token, spam_threshold=spam_threshold)
 
     try:
         await bot.start()

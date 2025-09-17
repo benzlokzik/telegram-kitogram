@@ -1,12 +1,13 @@
 """Main entry point for the Telegram Admin Bot."""
 
 import asyncio
-import os
 import sys
 
 from loguru import logger
 
+import config  # noqa: F401
 import log_config  # noqa: F401
+from config import get_spam_threshold, get_telegram_token
 from telegram_bot import SpamDetectionBot
 
 
@@ -20,20 +21,25 @@ def main() -> None:
         logger.info("Usage:")
         logger.info("  python main.py bot    - Run the Telegram bot")
         logger.info("")
-        logger.info("Before running the bot, set your TELEGRAM_BOT_TOKEN "
-              "environment variable:")
+        logger.info("Configuration:")
+        logger.info("  Copy .env.example to .env and configure your settings")
+        logger.info("  Or set environment variables directly:")
         logger.info("  export TELEGRAM_BOT_TOKEN=your_bot_token_here")
 
 
 async def run_bot() -> None:
     """Run the Telegram bot."""
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    token = get_telegram_token()
     if not token:
-        logger.error("TELEGRAM_BOT_TOKEN environment variable not set")
-        logger.error("Please set it with your bot token from @BotFather")
+        logger.error("TELEGRAM_BOT_TOKEN not found in environment")
+        logger.error("Please copy .env.example to .env and set your bot token")
+        logger.error("Or set TELEGRAM_BOT_TOKEN environment variable")
         return
 
-    bot = SpamDetectionBot(token, spam_threshold=0.95)
+    spam_threshold = get_spam_threshold()
+    logger.info(f"Using spam threshold: {spam_threshold}")
+    
+    bot = SpamDetectionBot(token, spam_threshold=spam_threshold)
 
     try:
         await bot.start()

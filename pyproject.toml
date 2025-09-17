@@ -10,6 +10,7 @@ dependencies = [
     "aiogram>=3.0.0",
     "aiosqlite>=0.17.0",
     "loguru>=0.7.0",
+    "python-dotenv>=1.0.0",
 ]
 license = { file = "LICENSE" }
 
