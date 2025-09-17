@@ -55,6 +55,7 @@ torchvision = [{ index = "pytorch-cu124" }]
 
 [tool.marimo.runtime]
 pythonpath = ["."]
+format_on_save = true
 
 [tool.marimo.save]
 autosave_delay = 1000

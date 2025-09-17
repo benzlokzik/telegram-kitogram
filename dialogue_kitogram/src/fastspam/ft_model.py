@@ -1,3 +1,7 @@
+import pathlib
+import shutil
+from tempfile import NamedTemporaryFile
+
 import fasttext
 
 try:
@@ -43,31 +47,43 @@ class FastTextSpamModel(SpamModel):
         self.cutoff = cutoff
         self._m: fasttext.FastText._FastText | None = None
 
-    def _validate_training_file(self) -> None:
-        train_path = self.cfg.train_path
-        if not train_path.exists():
-            msg = f"Training file not found: {train_path}"
+    def _validate_training_files(self, paths: list[pathlib.Path]) -> None:
+        if not paths:
+            msg = "No training files provided"
             raise FileNotFoundError(msg)
-        # FastText expects lines like: "__label__spam text ..." or "__label__ham text ..."
-        # We ensure at least one line starts with the label prefix.
-        with train_path.open("r", encoding="utf-8") as f:
-            has_labelled_line = any(line.lstrip().startswith("__label__") for line in f)
-        if not has_labelled_line:
-            msg = (
-                "Training data must be labelled in FastText format, for example: \n"
-                "__label__spam Your text here\n"
-                "__label__ham Your text here"
-            )
-            raise ValueError(msg)
+        for path in paths:
+            if not path.exists():
+                msg = f"Training file not found: {path}"
+                raise FileNotFoundError(msg)
+            with path.open("r", encoding="utf-8") as f:
+                has_labelled_line = any(
+                    line.lstrip().startswith("__label__") for line in f
+                )
+            if not has_labelled_line:
+                msg = (
+                    f"Training data in {path} must be labelled in FastText format,\n"
+                    "e.g.:\n__label__spam Your text here\n__label__ham Your text here"
+                )
+                raise ValueError(msg)
 
     def fit(self) -> None:
         print("Training FastText model...")
-        print(f"Training data path: {self.cfg.train_path}")
-        self._validate_training_file()
-        m = fasttext.train_supervised(input=str(self.cfg.train_path), **self.params)
+        paths = self.cfg.train_paths()
+        self._validate_training_files(paths)
+        # Merge multiple files into a temporary file to feed FastText
+        with NamedTemporaryFile(mode="w+", delete=False, encoding="utf-8") as tmp:
+            tmp_path = tmp.name
+            for p in paths:
+                with p.open("r", encoding="utf-8") as f:
+                    shutil.copyfileobj(f, tmp)
+            tmp.flush()
+        input_path = pathlib.Path(tmp_path)
+
+        print("Training data files:", [str(p) for p in paths])
+        m = fasttext.train_supervised(input=str(input_path), **self.params)
         if self.quantize:
             m.quantize(
-                input=str(self.cfg.train_path),
+                input=str(input_path),
                 qnorm=self.qnorm,
                 retrain=self.retrain,
                 cutoff=self.cutoff,
@@ -86,6 +102,7 @@ class FastTextSpamModel(SpamModel):
             msg = "Model is not loaded"
             raise RuntimeError(msg)
         labels, probs = model.predict(text.lower().strip(), k=2)
+        # return (labels, probs)
         return max(
             (p for l, p in zip(labels, probs, strict=False) if l == "__label__spam"),
             default=0.0,
@@ -102,5 +119,10 @@ if __name__ == "__main__":
     print(
         model.predict_proba(
             "блять как же заебали кустовые эйдоры сука ненавижу их всех",
+        ),
+    )
+    print(
+        model.predict_proba(
+            "qq",
         ),
     )
