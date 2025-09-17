@@ -202,6 +202,9 @@ db.sqlite3-journal
 # Bot database
 bot_messages.db
 
+# Logs directory
+logs/
+
 # Flask stuff:
 instance/
 .webassets-cache

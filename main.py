@@ -4,6 +4,9 @@ import asyncio
 import os
 import sys
 
+from loguru import logger
+
+import log_config  # noqa: F401
 from telegram_bot import SpamDetectionBot
 
 
@@ -13,21 +16,21 @@ def main() -> None:
         # Run the Telegram bot
         asyncio.run(run_bot())
     else:
-        print("Telegram Admin Bot")
-        print("Usage:")
-        print("  python main.py bot    - Run the Telegram bot")
-        print()
-        print("Before running the bot, set your TELEGRAM_BOT_TOKEN "
+        logger.info("Telegram Admin Bot")
+        logger.info("Usage:")
+        logger.info("  python main.py bot    - Run the Telegram bot")
+        logger.info("")
+        logger.info("Before running the bot, set your TELEGRAM_BOT_TOKEN "
               "environment variable:")
-        print("  export TELEGRAM_BOT_TOKEN=your_bot_token_here")
+        logger.info("  export TELEGRAM_BOT_TOKEN=your_bot_token_here")
 
 
 async def run_bot() -> None:
     """Run the Telegram bot."""
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
-        print("Error: TELEGRAM_BOT_TOKEN environment variable not set")
-        print("Please set it with your bot token from @BotFather")
+        logger.error("TELEGRAM_BOT_TOKEN environment variable not set")
+        logger.error("Please set it with your bot token from @BotFather")
         return
 
     bot = SpamDetectionBot(token, spam_threshold=0.95)
@@ -35,7 +38,7 @@ async def run_bot() -> None:
     try:
         await bot.start()
     except KeyboardInterrupt:
-        print("\nBot stopped by user")
+        logger.info("Bot stopped by user")
     finally:
         await bot.stop()
 

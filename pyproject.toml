@@ -9,6 +9,7 @@ dependencies = [
     "numpy<2.0",
     "aiogram>=3.0.0",
     "aiosqlite>=0.17.0",
+    "loguru>=0.7.0",
 ]
 license = { file = "LICENSE" }
 

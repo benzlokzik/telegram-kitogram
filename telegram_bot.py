@@ -1,13 +1,14 @@
 """Telegram bot for detecting and deleting bot messages using spam detection."""
 
 import asyncio
-import logging
 import os
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message
+from loguru import logger
 
+import log_config  # noqa: F401
 from bot_database import BotMessageDatabase
 from dialogue_kitogram.src.fastspam.ft_model import FastTextSpamModel, ModelConfig
 
@@ -28,13 +29,6 @@ class SpamDetectionBot:
 
         # Setup handlers
         self._setup_handlers()
-
-        # Configure logging
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
-        self.logger = logging.getLogger(__name__)
 
     def _setup_handlers(self) -> None:
         """Setup message and command handlers."""
@@ -105,7 +99,7 @@ class SpamDetectionBot:
             # Get spam probability
             spam_probability = self.spam_model.predict_proba(text_content)
 
-            self.logger.info(
+            logger.info(
                 f"Message from {message.from_user.username}: "
                 f"spam_probability={spam_probability:.3f}, "
                 f"threshold={self.spam_threshold}",
@@ -117,12 +111,12 @@ class SpamDetectionBot:
                 try:
                     await self.bot.delete_message(message.chat.id, message.message_id)
                     was_deleted = True
-                    self.logger.info(
+                    logger.info(
                         f"Deleted bot message from {message.from_user.username} "
                         f"with probability {spam_probability:.3f}",
                     )
                 except Exception as e:
-                    self.logger.exception("Failed to delete message: %s", e)
+                    logger.exception("Failed to delete message: {}", e)
 
                 # Record in database
                 await self.db.record_bot_message(
@@ -136,19 +130,19 @@ class SpamDetectionBot:
                 )
 
         except Exception as e:
-            self.logger.exception("Error processing message: %s", e)
+            logger.exception("Error processing message: {}", e)
 
     async def start(self) -> None:
         """Start the bot."""
         await self.db.init_database()
-        self.logger.info("Bot database initialized")
+        logger.info("Bot database initialized")
 
-        self.logger.info("Starting bot...")
+        logger.info("Starting bot...")
         await self.dp.start_polling(self.bot)
 
     async def stop(self) -> None:
         """Stop the bot."""
-        self.logger.info("Stopping bot...")
+        logger.info("Stopping bot...")
         await self.bot.session.close()
 
 
@@ -157,7 +151,7 @@ async def main() -> None:
     # Get bot token from environment variable
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
-        print("Please set TELEGRAM_BOT_TOKEN environment variable")
+        logger.error("Please set TELEGRAM_BOT_TOKEN environment variable")
         return
 
     # Create and start bot
@@ -166,7 +160,7 @@ async def main() -> None:
     try:
         await bot.start()
     except KeyboardInterrupt:
-        print("\nBot stopped by user")
+        logger.info("Bot stopped by user")
     finally:
         await bot.stop()
 
