@@ -95,7 +95,7 @@ def _(mo):
 
 @app.cell
 def _(FastTextSpamModel, button, cfg, mo):
-    mo.stop(not button.value, mo.md("Click the button to retrain the model"))
+    mo.stop(button.value, mo.md("Click the button to retrain the model"))
 
     FastTextSpamModel(cfg).fit()
     return
@@ -130,7 +130,32 @@ def _(predict):
 
 
 @app.cell
-def _():
+def _(predict):
+    predict("qq")
+    return
+
+
+@app.cell
+def _(predict):
+    predict("добро пожаловать аахах")
+    return
+
+
+@app.cell
+def _(predict):
+    predict("ахахахаа")
+    return
+
+
+@app.cell
+def _(predict):
+    predict("здравстуйте. знаю, что не теме, но у меня есть инетересная вакансия")
+    return
+
+
+@app.cell
+def _(predict):
+    predict("бля я крч вакансию нашел недавно")
     return
 
 
