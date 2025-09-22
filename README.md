@@ -1,6 +1,19 @@
-# Telegram Admin Bot
+# Dialog Kitogram
 
-A Telegram bot that automatically detects and removes bot-generated messages using machine learning spam detection.
+Dialogue management KIT bot for Telegram using.
+
+Currently supports:
+
+- Automatic detection and removal of bot-generated messages using machine learning spam detection.
+- SQLite logging of all detected bot messages.
+- Statistics and recent activity view.
+- Commands:
+  - `/start` - Start the bot
+  - `/stats` - View detection statistics  
+  - `/recent` - View recent detections
+  - `/allow` - Allow a chat for moderation
+  - `/disallow` - Remove a chat from moderation
+  - `/allowed` - View allowed chats
 
 ## Features
 
@@ -51,7 +64,8 @@ A Telegram bot that automatically detects and removes bot-generated messages usi
 
 4. **Run the Bot**:
    ```bash
-   python main.py bot
+   # Starts the bot by default
+   python main.py
    ```
 
 ## Testing
@@ -82,5 +96,22 @@ The bot creates a local SQLite database (`bot_messages.db`) to store:
 
 Uses a pre-trained FastText model for spam detection located at:
 `dialogue_kitogram/data/antispam.bin`
+## Admins and Allowed Chats
+
+- Set admin Telegram user IDs via environment variable:
+  ```bash
+  export ADMIN_USER_IDS="123456789,987654321"
+  ```
+  Supports comma or space separated integers.
+
+- Only chats in the allow-list are moderated. Admins can manage it:
+  - In a group (as admin): `/allow` to allow current chat
+  - In a group: `/disallow` to remove current chat
+  - In a DM with the bot (admin only):
+    - `/allow <chat_id> [title]`
+    - `/disallow <chat_id>`
+    - `/allowed` — list allowed chats
+
+Non-admin DMs receive a brief notice to contact an admin.
 
 The model was trained on Russian/English spam detection datasets and achieves high accuracy in distinguishing between human and bot-generated content.
