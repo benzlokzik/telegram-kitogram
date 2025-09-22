@@ -4,8 +4,8 @@ import os
 import sys
 from pathlib import Path
 
-from loguru import logger
 from dotenv import load_dotenv
+from loguru import logger
 
 # Load environment variables first
 env_file = Path(".env")
@@ -24,7 +24,7 @@ def setup_logging() -> None:
     """Configure loguru logging with the provided cool config."""
     log_file_path = os.getenv("LOG_FILE_PATH", "logs/bot.log")
     log_level = os.getenv("LOG_LEVEL", "INFO")
-    
+
     # Create logs directory if it doesn't exist
     Path(log_file_path).parent.mkdir(exist_ok=True)
 

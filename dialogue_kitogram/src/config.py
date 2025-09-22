@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file if it exists
 _loaded = False
 
+
 def load_config() -> None:
     """Load environment variables from .env file if it exists."""
     global _loaded

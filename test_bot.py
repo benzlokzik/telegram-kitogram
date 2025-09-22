@@ -43,10 +43,8 @@ async def test_spam_detection() -> bool:
     logger.info("Testing different message types:")
     for message, description in test_messages:
         probability = model.predict_proba(message)
-        status = ("🔴 BOT (would delete)" if probability > SPAM_THRESHOLD
-                  else "🟢 HUMAN")
-        logger.info(f"{status} {description}: {probability:.3f} - "
-              f"'{message[:50]}...'")
+        status = "🔴 BOT (would delete)" if probability > SPAM_THRESHOLD else "🟢 HUMAN"
+        logger.info(f"{status} {description}: {probability:.3f} - '{message[:50]}...'")
 
     return True
 

@@ -3,13 +3,15 @@
 import asyncio
 
 from aiogram import Bot, Dispatcher, F
-from aiogram.filters import Command
 from aiogram.enums import ChatType
+from aiogram.filters import Command
 from aiogram.types import Message
 from loguru import logger
-from .bot_database import BotMessageDatabase
-from .config import get_spam_threshold, get_telegram_token, get_admin_user_ids
+
 from dialogue_kitogram.src.fastspam.ft_model import FastTextSpamModel, ModelConfig
+
+from .bot_database import BotMessageDatabase
+from .config import get_admin_user_ids, get_spam_threshold, get_telegram_token
 
 
 class SpamDetectionBot:
@@ -36,7 +38,7 @@ class SpamDetectionBot:
         async def start_command(message: Message) -> None:
             """Handle /start command."""
             await message.reply(
-                "Bot ready. I monitor messages and remove ones likely bot-generated."
+                "Bot ready. I monitor messages and remove ones likely bot-generated.",
             )
 
         @self.dp.message(Command("allow"))
@@ -112,7 +114,10 @@ class SpamDetectionBot:
         async def allowed_command(message: Message) -> None:
             """List allowed chats. Only admins via DM."""
             admin_ids = set(get_admin_user_ids())
-            if message.chat.type != ChatType.PRIVATE or message.from_user.id not in admin_ids:
+            if (
+                message.chat.type != ChatType.PRIVATE
+                or message.from_user.id not in admin_ids
+            ):
                 await message.reply("Not authorized.")
                 return
             rows = await self.db.list_allowed_chats()
@@ -178,17 +183,26 @@ class SpamDetectionBot:
             try:
                 await self.bot.delete_message(message.chat.id, replied.message_id)
                 # Compute original spam probability for the replied message
-                replied_text = (replied.text or replied.caption or "")
+                replied_text = replied.text or replied.caption or ""
                 replied_spam_probability = (
                     self.spam_model.predict_proba(replied_text)
-                    if replied_text.strip() else 0.0
+                    if replied_text.strip()
+                    else 0.0
                 )
                 # Record manual deletion in the database
                 await self.db.record_bot_message(
                     message_id=replied.message_id,
                     chat_id=message.chat.id,
-                    user_id=(replied.from_user.id if getattr(replied, 'from_user', None) else None),
-                    username=(replied.from_user.username if getattr(replied, 'from_user', None) else None),
+                    user_id=(
+                        replied.from_user.id
+                        if getattr(replied, "from_user", None)
+                        else None
+                    ),
+                    username=(
+                        replied.from_user.username
+                        if getattr(replied, "from_user", None)
+                        else None
+                    ),
                     text_content=replied_text,
                     spam_probability=replied_spam_probability,
                     was_deleted=True,
@@ -213,7 +227,9 @@ class SpamDetectionBot:
             elif message.chat.type == ChatType.PRIVATE:
                 # Only respond to admins in DM; others get a short notice
                 if message.from_user.id not in set(get_admin_user_ids()):
-                    await message.reply("Hi! Ask an admin to add your group via /allow.")
+                    await message.reply(
+                        "Hi! Ask an admin to add your group via /allow.",
+                    )
                     return
             await self._check_and_handle_message(message)
 
@@ -221,15 +237,19 @@ class SpamDetectionBot:
         async def process_other_messages(message: Message) -> None:
             """Process non-text messages (images, stickers, etc.)."""
             # For non-text messages, we can't analyze the content but we log a trace
-            logger.debug("Received non-text message in chat {} of type {}",
-                         message.chat.id, message.chat.type)
+            logger.debug(
+                "Received non-text message in chat {} of type {}",
+                message.chat.id,
+                message.chat.type,
+            )
 
     async def _check_and_handle_message(self, message: Message) -> None:
         """Check message for spam and handle accordingly."""
         try:
             # Skip messages from bot itself and commands
-            if (message.from_user.is_bot or
-                (message.text and message.text.startswith("/"))):
+            if message.from_user.is_bot or (
+                message.text and message.text.startswith("/")
+            ):
                 return
 
             text_content = message.text or message.caption or ""

@@ -1,6 +1,6 @@
 """Database module for storing bot message records."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import aiosqlite
 
@@ -46,7 +46,7 @@ class BotMessageDatabase:
                 column_names = {row[1] for row in columns}
             if "was_manual" not in column_names:
                 await db.execute(
-                    "ALTER TABLE bot_messages ADD COLUMN was_manual BOOLEAN NOT NULL DEFAULT 0"
+                    "ALTER TABLE bot_messages ADD COLUMN was_manual BOOLEAN NOT NULL DEFAULT 0",
                 )
                 await db.commit()
 
@@ -64,39 +64,47 @@ class BotMessageDatabase:
     ) -> None:
         """Record a detected bot message in the database."""
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
+            await db.execute(
+                """
                 INSERT INTO bot_messages
                 (message_id, chat_id, user_id, username, text_content,
                  spam_probability, detection_timestamp, was_deleted, was_manual)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                message_id,
-                chat_id,
-                user_id,
-                username,
-                text_content,
-                spam_probability,
-                datetime.now(tz=timezone.utc),
-                was_deleted,
-                1 if was_manual else 0,
-            ))
+            """,
+                (
+                    message_id,
+                    chat_id,
+                    user_id,
+                    username,
+                    text_content,
+                    spam_probability,
+                    datetime.now(tz=UTC),
+                    was_deleted,
+                    1 if was_manual else 0,
+                ),
+            )
             await db.commit()
 
     async def get_recent_detections(self, limit: int = 10) -> list[dict]:
         """Get recent bot message detections."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-            async with db.execute("""
+            async with db.execute(
+                """
                 SELECT * FROM bot_messages
                 ORDER BY detection_timestamp DESC
                 LIMIT ?
-            """, (limit,)) as cursor:
+            """,
+                (limit,),
+            ) as cursor:
                 rows = await cursor.fetchall()
                 return [dict(row) for row in rows]
 
     async def get_stats(self) -> dict:
         """Get statistics about detected bot messages."""
-        async with aiosqlite.connect(self.db_path) as db, db.execute("""
+        async with (
+            aiosqlite.connect(self.db_path) as db,
+            db.execute("""
                 SELECT
                     COUNT(*) as total_detections,
                     COUNT(CASE WHEN was_deleted = 1 THEN 1 END) as deleted_messages,
@@ -104,7 +112,8 @@ class BotMessageDatabase:
                     MAX(spam_probability) as max_spam_probability
                 FROM bot_messages
                 WHERE was_manual = 0
-            """) as cursor:
+            """) as cursor,
+        ):
             row = await cursor.fetchone()
             return {
                 "total_detections": row[0] if row else 0,
@@ -131,7 +140,7 @@ class BotMessageDatabase:
                     added_by_admin_id=excluded.added_by_admin_id,
                     added_at=excluded.added_at
                 """,
-                (chat_id, title, added_by_admin_id, datetime.now(tz=timezone.utc)),
+                (chat_id, title, added_by_admin_id, datetime.now(tz=UTC)),
             )
             await db.commit()
 
@@ -147,13 +156,15 @@ class BotMessageDatabase:
 
     async def is_chat_allowed(self, chat_id: int) -> bool:
         """Check if a chat is in the allowed list."""
-        async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute(
+        async with (
+            aiosqlite.connect(self.db_path) as db,
+            db.execute(
                 "SELECT 1 FROM allowed_chats WHERE chat_id = ? LIMIT 1",
                 (chat_id,),
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row is not None
+            ) as cursor,
+        ):
+            row = await cursor.fetchone()
+            return row is not None
 
     async def list_allowed_chats(self) -> list[dict]:
         """List all allowed chats."""
