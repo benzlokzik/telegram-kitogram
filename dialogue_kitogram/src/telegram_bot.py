@@ -186,7 +186,7 @@ class SpamDetectionBot:
                 replied_text = replied.text or replied.caption or ""
                 replied_spam_probability = (
                     self.spam_model.predict_proba(replied_text)
-                    if replied_text.strip()
+                    if "\n" in replied_text.strip()
                     else 0.0
                 )
                 # Record manual deletion in the database
