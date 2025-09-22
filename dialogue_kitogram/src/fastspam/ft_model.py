@@ -101,7 +101,7 @@ class FastTextSpamModel(SpamModel):
         if model is None:
             msg = "Model is not loaded"
             raise RuntimeError(msg)
-        labels, probs = model.predict(text.lower().strip(), k=2)
+        labels, probs = model.predict(text.lower().replace("\n"," ").strip(), k=2)
         # return (labels, probs)
         return max(
             (p for l, p in zip(labels, probs, strict=False) if l == "__label__spam"),
