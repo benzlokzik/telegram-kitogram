@@ -153,9 +153,55 @@ class SpamDetectionBot:
                     f"Probability: {detection['spam_probability']:.2%}\n"
                     f"Text: {detection['text_content'][:50]}...\n"
                     f"Deleted: {'✅' if detection['was_deleted'] else '❌'}\n"
+                    f"Manual: {'✅' if detection.get('was_manual') else '❌'}\n"
                     f"Time: {detection['detection_timestamp']}\n\n"
                 )
             await message.reply(response)
+
+        @self.dp.message(Command("del"))
+        async def delete_by_reply_command(message: Message) -> None:
+            """Delete the replied-to message. Admins only.
+
+            Usage: reply to a message with /del
+            """
+            admin_ids = set(get_admin_user_ids())
+            if message.from_user.id not in admin_ids:
+                await message.reply("Not authorized.")
+                return
+
+            # Must be used as a reply
+            replied = message.reply_to_message
+            if not replied:
+                await message.reply("Reply to a message with /del to delete it.")
+                return
+
+            try:
+                await self.bot.delete_message(message.chat.id, replied.message_id)
+                # Compute original spam probability for the replied message
+                replied_text = (replied.text or replied.caption or "")
+                replied_spam_probability = (
+                    self.spam_model.predict_proba(replied_text)
+                    if replied_text.strip() else 0.0
+                )
+                # Record manual deletion in the database
+                await self.db.record_bot_message(
+                    message_id=replied.message_id,
+                    chat_id=message.chat.id,
+                    user_id=(replied.from_user.id if getattr(replied, 'from_user', None) else None),
+                    username=(replied.from_user.username if getattr(replied, 'from_user', None) else None),
+                    text_content=replied_text,
+                    spam_probability=replied_spam_probability,
+                    was_deleted=True,
+                    was_manual=True,
+                )
+                # Try to remove the /del command message to keep chat clean (best-effort)
+                try:
+                    await self.bot.delete_message(message.chat.id, message.message_id)
+                except Exception as e:
+                    logger.debug("Failed to delete command message: {}", e)
+            except Exception as e:
+                logger.exception("Failed to delete replied message: {}", e)
+                await message.reply("Failed to delete. Do I have permission?")
 
         @self.dp.message(F.text)
         async def process_text_message(message: Message) -> None:

@@ -14,6 +14,7 @@ Currently supports:
   - `/allow` - Allow a chat for moderation
   - `/disallow` - Remove a chat from moderation
   - `/allowed` - View allowed chats
+  - `/del` - Admin-only. Reply to a message to delete it manually
 
 ## Features
 
@@ -25,6 +26,7 @@ Currently supports:
   - `/start` - Start the bot
   - `/stats` - View detection statistics  
   - `/recent` - View recent detections
+  - `/del` - Admin-only, reply-based manual deletion
 
 ## How It Works
 
@@ -107,6 +109,7 @@ Uses a pre-trained FastText model for spam detection located at:
 - Only chats in the allow-list are moderated. Admins can manage it:
   - In a group (as admin): `/allow` to allow current chat
   - In a group: `/disallow` to remove current chat
+  - In a group: reply to a message with `/del` to delete it (admins only)
   - In a DM with the bot (admin only):
     - `/allow <chat_id> [title]`
     - `/disallow <chat_id>`

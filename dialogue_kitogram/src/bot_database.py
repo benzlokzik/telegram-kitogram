@@ -26,7 +26,8 @@ class BotMessageDatabase:
                     text_content TEXT,
                     spam_probability REAL NOT NULL,
                     detection_timestamp DATETIME NOT NULL,
-                    was_deleted BOOLEAN NOT NULL DEFAULT TRUE
+                    was_deleted BOOLEAN NOT NULL DEFAULT TRUE,
+                    was_manual BOOLEAN NOT NULL DEFAULT FALSE
                 )
             """)
             await db.execute("""
@@ -39,6 +40,16 @@ class BotMessageDatabase:
             """)
             await db.commit()
 
+            # Ensure migration: add was_manual column if missing in existing DBs
+            async with db.execute("PRAGMA table_info(bot_messages)") as cursor:
+                columns = await cursor.fetchall()
+                column_names = {row[1] for row in columns}
+            if "was_manual" not in column_names:
+                await db.execute(
+                    "ALTER TABLE bot_messages ADD COLUMN was_manual BOOLEAN NOT NULL DEFAULT 0"
+                )
+                await db.commit()
+
     async def record_bot_message(
         self,
         *,
@@ -49,14 +60,15 @@ class BotMessageDatabase:
         text_content: str,
         spam_probability: float,
         was_deleted: bool = True,
+        was_manual: bool = False,
     ) -> None:
         """Record a detected bot message in the database."""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("""
                 INSERT INTO bot_messages
                 (message_id, chat_id, user_id, username, text_content,
-                 spam_probability, detection_timestamp, was_deleted)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 spam_probability, detection_timestamp, was_deleted, was_manual)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 message_id,
                 chat_id,
@@ -66,6 +78,7 @@ class BotMessageDatabase:
                 spam_probability,
                 datetime.now(tz=timezone.utc),
                 was_deleted,
+                1 if was_manual else 0,
             ))
             await db.commit()
 
@@ -90,6 +103,7 @@ class BotMessageDatabase:
                     AVG(spam_probability) as avg_spam_probability,
                     MAX(spam_probability) as max_spam_probability
                 FROM bot_messages
+                WHERE was_manual = 0
             """) as cursor:
             row = await cursor.fetchone()
             return {
