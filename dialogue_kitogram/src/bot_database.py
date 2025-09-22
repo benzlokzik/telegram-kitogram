@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import aiosqlite
 
-from config import get_db_path
+from .config import get_db_path
 
 
 class BotMessageDatabase:

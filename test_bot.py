@@ -6,8 +6,8 @@ from pathlib import Path
 
 from loguru import logger
 
-import log_config  # noqa: F401
-from bot_database import BotMessageDatabase
+from dialogue_kitogram.src import log_config  # noqa: F401
+from dialogue_kitogram.src.bot_database import BotMessageDatabase
 from dialogue_kitogram.src.fastspam.ft_model import FastTextSpamModel, ModelConfig
 
 # Constants

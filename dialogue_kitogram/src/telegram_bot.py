@@ -7,8 +7,8 @@ from aiogram.filters import Command
 from aiogram.enums import ChatType
 from aiogram.types import Message
 from loguru import logger
-from bot_database import BotMessageDatabase
-from config import get_spam_threshold, get_telegram_token, get_admin_user_ids
+from .bot_database import BotMessageDatabase
+from .config import get_spam_threshold, get_telegram_token, get_admin_user_ids
 from dialogue_kitogram.src.fastspam.ft_model import FastTextSpamModel, ModelConfig
 
 

@@ -3,16 +3,7 @@ import shutil
 from tempfile import NamedTemporaryFile
 
 import fasttext
-
-try:
-    from src.core.base_model import ModelConfig, SpamModel
-except ImportError:
-    # Fallback for when running as script
-    import sys
-    from pathlib import Path
-
-    sys.path.append(str(Path(__file__).parent.parent))
-    from core.base_model import ModelConfig, SpamModel
+from ..core.base_model import ModelConfig, SpamModel
 
 
 class FastTextSpamModel(SpamModel):
