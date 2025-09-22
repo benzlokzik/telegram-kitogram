@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fasttext>=0.9.3",
+    "fasttext",
     "numpy<2.0",
     "aiogram>=3.0.0",
     "aiosqlite>=0.17.0",
@@ -53,9 +53,9 @@ docstring-code-format = false
 docstring-code-line-length = "dynamic"
 
 [tool.uv.sources]
-fish_speech = { git = "https://github.com/fishaudio/fish-speech" }
 torch = [{ index = "pytorch-cu124" }]
 torchvision = [{ index = "pytorch-cu124" }]
+fasttext = { git = "https://github.com/facebookresearch/fastText" }
 
 [tool.marimo.runtime]
 pythonpath = ["."]

@@ -484,7 +484,7 @@ dev = [
 requires-dist = [
     { name = "aiogram", specifier = ">=3.0.0" },
     { name = "aiosqlite", specifier = ">=0.17.0" },
-    { name = "fasttext", specifier = ">=0.9.3" },
+    { name = "fasttext", git = "https://github.com/facebookresearch/fastText" },
     { name = "loguru", specifier = ">=0.7.0" },
     { name = "numpy", specifier = "<2.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
@@ -555,14 +555,13 @@ wheels = [
 
 [[package]]
 name = "fasttext"
-version = "0.9.3"
-source = { registry = "https://pypi.org/simple" }
+version = "0.9.2"
+source = { git = "https://github.com/facebookresearch/fastText#1142dc4c4ecbc19cc16eee5cdd28472e689267e6" }
 dependencies = [
     { name = "numpy" },
     { name = "pybind11" },
     { name = "setuptools" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9f/3b/9a10b95eaf565358339162848863197c3f0a29b540ca22b2951df2d66a48/fasttext-0.9.3.tar.gz", hash = "sha256:eb03f2ef6340c6ac9e4398a30026f05471da99381b307aafe2f56e4cd26baaef", size = 73439, upload-time = "2024-06-12T09:44:42.544Z" }
 
 [[package]]
 name = "fqdn"
