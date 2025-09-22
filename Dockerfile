@@ -1,4 +1,7 @@
-FROM python:3.12-slim
+FROM python:3.12-slim-trixie
+
+# Copy uv and uvx from the official image (per docs)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -12,9 +15,6 @@ RUN apt-get update \
     cmake \
     git \
  && rm -rf /var/lib/apt/lists/*
-
-# Install uv (ultra-fast Python package manager)
-RUN pip install --no-cache-dir uv
 
 # Copy project metadata first for better layer caching
 COPY pyproject.toml uv.lock README.md ./
