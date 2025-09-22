@@ -16,6 +16,7 @@ from .config import get_admin_user_ids, get_spam_threshold, get_telegram_token
 # TODO: make configurable via env
 MIN_WORD_COUNT_FOR_SPAM_CHECK = 5
 
+
 class SpamDetectionBot:
     """Telegram bot that detects and removes spam/bot messages."""
 
@@ -188,7 +189,8 @@ class SpamDetectionBot:
                 replied_text = replied.text or replied.caption or ""
                 replied_spam_probability = (
                     self.spam_model.predict_proba(replied_text)
-                    if "\n" in replied_text.strip() or len(replied_text.strip().split()) > MIN_WORD_COUNT_FOR_SPAM_CHECK
+                    if "\n" in replied_text.strip()
+                    or len(replied_text.strip().split()) > MIN_WORD_COUNT_FOR_SPAM_CHECK
                     else 0.0
                 )
                 # Record manual deletion in the database
@@ -260,6 +262,10 @@ class SpamDetectionBot:
 
             # Get spam probability
             spam_probability = self.spam_model.predict_proba(text_content)
+            if "\n" in text_content:
+                spam_probability -= 0.1
+            if len(text_content.split()) > MIN_WORD_COUNT_FOR_SPAM_CHECK:
+                spam_probability -= 0.1
 
             logger.info(
                 f"Message from {message.from_user.username}: "
