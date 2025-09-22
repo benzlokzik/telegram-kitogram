@@ -4,15 +4,7 @@ from tempfile import NamedTemporaryFile
 
 import fasttext
 
-try:
-    from src.core.base_model import ModelConfig, SpamModel
-except ImportError:
-    # Fallback for when running as script
-    import sys
-    from pathlib import Path
-
-    sys.path.append(str(Path(__file__).parent.parent))
-    from core.base_model import ModelConfig, SpamModel
+from ..core.base_model import ModelConfig, SpamModel
 
 
 class FastTextSpamModel(SpamModel):
@@ -101,7 +93,7 @@ class FastTextSpamModel(SpamModel):
         if model is None:
             msg = "Model is not loaded"
             raise RuntimeError(msg)
-        labels, probs = model.predict(text.lower().strip(), k=2)
+        labels, probs = model.predict(text.lower().replace("\n", " ").strip(), k=2)
         # return (labels, probs)
         return max(
             (p for l, p in zip(labels, probs, strict=False) if l == "__label__spam"),
