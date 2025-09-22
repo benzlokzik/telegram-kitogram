@@ -1,0 +1,31 @@
+# VCS
+.git
+.gitignore
+.github
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Environments
+.venv/
+venv/
+.env
+
+# OS files
+.DS_Store
+
+# Local runtime data
+bot_messages.db
+logs/
+
+# Not needed in runtime image
+experiments/
+docs/
+tests/

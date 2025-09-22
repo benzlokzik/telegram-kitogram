@@ -1,0 +1,18 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dialog-kitogram:latest
+    container_name: dialog-kitogram-bot
+    env_file:
+      - ./.env
+    environment:
+      # Ensure app reads DB and logs from mounted root paths
+      - DB_PATH=/app/bot_messages.db
+      - LOG_FILE_PATH=/app/logs/bot.log
+    volumes:
+      - ./bot_messages.db:/app/bot_messages.db
+      - ./logs:/app/logs
+      - ./dialogue_kitogram/data:/app/dialogue_kitogram/data:ro
+    restart: unless-stopped
