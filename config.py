@@ -53,3 +53,38 @@ def get_log_file_path() -> str:
 
 # Load configuration when module is imported
 load_config()
+
+
+def get_admin_user_ids() -> list[int]:
+    """Get list of Telegram admin user IDs from env `ADMIN_USER_IDS`.
+
+    Supports comma/space separated integers, e.g. "123,456" or "123 456".
+    Returns an empty list if unset or invalid.
+    """
+    load_config()
+    raw = os.getenv("ADMIN_USER_IDS", "").strip()
+    if not raw:
+        # Backward/alias support
+        raw = os.getenv("ADMIN_IDS", "").strip()
+    if not raw:
+        return []
+    # Normalize separators to commas, split, and parse ints safely
+    separators_normalized = raw.replace(" ", ",")
+    ids: list[int] = []
+    for token in separators_normalized.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        try:
+            ids.append(int(token))
+        except ValueError:
+            # ignore invalid tokens
+            continue
+    # De-duplicate while preserving order
+    seen: set[int] = set()
+    unique_ids: list[int] = []
+    for admin_id in ids:
+        if admin_id not in seen:
+            unique_ids.append(admin_id)
+            seen.add(admin_id)
+    return unique_ids

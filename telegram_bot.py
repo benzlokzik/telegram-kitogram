@@ -4,13 +4,11 @@ import asyncio
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
+from aiogram.enums import ChatType
 from aiogram.types import Message
 from loguru import logger
-
-import config  # noqa: F401
-import log_config  # noqa: F401
 from bot_database import BotMessageDatabase
-from config import get_spam_threshold, get_telegram_token
+from config import get_spam_threshold, get_telegram_token, get_admin_user_ids
 from dialogue_kitogram.src.fastspam.ft_model import FastTextSpamModel, ModelConfig
 
 
@@ -38,9 +36,94 @@ class SpamDetectionBot:
         async def start_command(message: Message) -> None:
             """Handle /start command."""
             await message.reply(
-                "Bot started! I will monitor messages and remove those that "
-                "are likely bot-generated (>95% probability).",
+                "Bot ready. I monitor messages and remove ones likely bot-generated."
             )
+
+        @self.dp.message(Command("allow"))
+        async def allow_command(message: Message) -> None:
+            """Allow a chat for moderation. Only admins via DM can use.
+
+            Usage in DM: /allow <chat_id> [title]
+            When used in a group: /allow (adds current chat)
+            """
+            admin_ids = set(get_admin_user_ids())
+            if message.chat.type == ChatType.PRIVATE:
+                if message.from_user.id not in admin_ids:
+                    await message.reply("Not authorized.")
+                    return
+                args = (message.text or "").split(maxsplit=2)
+                if len(args) < 2:
+                    await message.reply("Usage: /allow <chat_id> [title]")
+                    return
+                try:
+                    target_chat_id = int(args[1])
+                except ValueError:
+                    await message.reply("chat_id must be an integer")
+                    return
+                title = args[2] if len(args) > 2 else None
+                await self.db.add_allowed_chat(
+                    chat_id=target_chat_id,
+                    title=title,
+                    added_by_admin_id=message.from_user.id,
+                )
+                await message.reply(f"Allowed chat {target_chat_id}.")
+            else:
+                # In a group/supergroup context, allow current chat
+                if message.from_user.id not in admin_ids:
+                    await message.reply("Not authorized.")
+                    return
+                await self.db.add_allowed_chat(
+                    chat_id=message.chat.id,
+                    title=getattr(message.chat, "title", None),
+                    added_by_admin_id=message.from_user.id,
+                )
+                await message.reply("This chat is now allowed.")
+
+        @self.dp.message(Command("disallow"))
+        async def disallow_command(message: Message) -> None:
+            """Remove a chat from allowed list. Admin DM or in group.
+
+            Usage in DM: /disallow <chat_id>
+            In group: /disallow (removes current chat)
+            """
+            admin_ids = set(get_admin_user_ids())
+            if message.from_user.id not in admin_ids:
+                await message.reply("Not authorized.")
+                return
+            if message.chat.type == ChatType.PRIVATE:
+                args = (message.text or "").split(maxsplit=1)
+                if len(args) < 2:
+                    await message.reply("Usage: /disallow <chat_id>")
+                    return
+                try:
+                    target_chat_id = int(args[1])
+                except ValueError:
+                    await message.reply("chat_id must be an integer")
+                    return
+            else:
+                target_chat_id = message.chat.id
+            removed = await self.db.remove_allowed_chat(target_chat_id)
+            if removed:
+                await message.reply(f"Disallowed chat {target_chat_id}.")
+            else:
+                await message.reply("Chat was not in allowed list.")
+
+        @self.dp.message(Command("allowed"))
+        async def allowed_command(message: Message) -> None:
+            """List allowed chats. Only admins via DM."""
+            admin_ids = set(get_admin_user_ids())
+            if message.chat.type != ChatType.PRIVATE or message.from_user.id not in admin_ids:
+                await message.reply("Not authorized.")
+                return
+            rows = await self.db.list_allowed_chats()
+            if not rows:
+                await message.reply("No allowed chats.")
+                return
+            lines = [
+                f"{row['chat_id']} — {row.get('title') or ''} (by {row.get('added_by_admin_id')})"
+                for row in rows
+            ]
+            await message.reply("Allowed chats:\n" + "\n".join(lines))
 
         @self.dp.message(Command("stats"))
         async def stats_command(message: Message) -> None:
@@ -77,13 +160,23 @@ class SpamDetectionBot:
         @self.dp.message(F.text)
         async def process_text_message(message: Message) -> None:
             """Process incoming text messages for spam detection."""
+            # Enforce allowed chats for group/supergroup channels; allow DMs for admins
+            if message.chat.type in {ChatType.GROUP, ChatType.SUPERGROUP}:
+                if not await self.db.is_chat_allowed(message.chat.id):
+                    return
+            elif message.chat.type == ChatType.PRIVATE:
+                # Only respond to admins in DM; others get a short notice
+                if message.from_user.id not in set(get_admin_user_ids()):
+                    await message.reply("Hi! Ask an admin to add your group via /allow.")
+                    return
             await self._check_and_handle_message(message)
 
         @self.dp.message()
         async def process_other_messages(message: Message) -> None:
             """Process non-text messages (images, stickers, etc.)."""
-            # For non-text messages, we can't analyze the content
-            # but we can still log them if needed
+            # For non-text messages, we can't analyze the content but we log a trace
+            logger.debug("Received non-text message in chat {} of type {}",
+                         message.chat.id, message.chat.type)
 
     async def _check_and_handle_message(self, message: Message) -> None:
         """Check message for spam and handle accordingly."""

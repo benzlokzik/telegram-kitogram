@@ -45,4 +45,4 @@ echo "Bot will monitor messages and delete those with >95% spam probability"
 echo "Press Ctrl+C to stop"
 echo
 
-python main.py bot
+python main.py

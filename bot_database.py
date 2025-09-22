@@ -29,6 +29,14 @@ class BotMessageDatabase:
                     was_deleted BOOLEAN NOT NULL DEFAULT TRUE
                 )
             """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS allowed_chats (
+                    chat_id INTEGER PRIMARY KEY,
+                    title TEXT,
+                    added_by_admin_id INTEGER,
+                    added_at DATETIME NOT NULL
+                )
+            """)
             await db.commit()
 
     async def record_bot_message(
@@ -90,3 +98,59 @@ class BotMessageDatabase:
                 "avg_spam_probability": row[2] if row and row[2] else 0.0,
                 "max_spam_probability": row[3] if row and row[3] else 0.0,
             }
+
+    async def add_allowed_chat(
+        self,
+        *,
+        chat_id: int,
+        title: str | None,
+        added_by_admin_id: int,
+    ) -> None:
+        """Add or update an allowed chat entry."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """
+                INSERT INTO allowed_chats (chat_id, title, added_by_admin_id, added_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(chat_id) DO UPDATE SET
+                    title=excluded.title,
+                    added_by_admin_id=excluded.added_by_admin_id,
+                    added_at=excluded.added_at
+                """,
+                (chat_id, title, added_by_admin_id, datetime.now(tz=timezone.utc)),
+            )
+            await db.commit()
+
+    async def remove_allowed_chat(self, chat_id: int) -> bool:
+        """Remove an allowed chat. Returns True if a row was deleted."""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                "DELETE FROM allowed_chats WHERE chat_id = ?",
+                (chat_id,),
+            )
+            await db.commit()
+            return cursor.rowcount > 0
+
+    async def is_chat_allowed(self, chat_id: int) -> bool:
+        """Check if a chat is in the allowed list."""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                "SELECT 1 FROM allowed_chats WHERE chat_id = ? LIMIT 1",
+                (chat_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                return row is not None
+
+    async def list_allowed_chats(self) -> list[dict]:
+        """List all allowed chats."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT chat_id, title, added_by_admin_id, added_at
+                FROM allowed_chats
+                ORDER BY added_at DESC
+                """,
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
