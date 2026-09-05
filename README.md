@@ -18,7 +18,7 @@ Currently supports:
 
 ## Features
 
-- **Automatic Bot Detection**: Uses a pre-trained FastText model to detect bot-generated messages with >95% accuracy
+- **Automatic Bot Detection**: Uses the pre-trained BERT transformer from spam-detector v0.2.0 (rubert-tiny2)
 - **Message Deletion**: Automatically deletes messages identified as bot-generated
 - **SQLite Logging**: Records all detected bot messages in a local database
 - **Statistics**: View detection statistics and recent activity
@@ -31,10 +31,15 @@ Currently supports:
 ## How It Works
 
 1. The bot monitors all text messages in the chat
-2. Each message is analyzed using a FastText spam detection model
-3. If the spam probability is >95%, the message is considered bot-generated
+2. Each message is analyzed using BERT in a dedicated worker, keeping Telegram handlers responsive; polling handles at most 32 updates concurrently to bound the inference queue
+3. The adjusted spam score is compared with `SPAM_THRESHOLD` (default `0.95`)
 4. Bot messages are automatically deleted and logged to a SQLite database
 5. Admins can view statistics and recent activity using bot commands
+
+The existing score adjustments are preserved: subtract `0.1` for a newline and
+`0.1` for more than five words. At the default threshold, either adjustment
+prevents automatic deletion even when the model returns `1.0`. The threshold is
+a moderation setting, not a measured accuracy figure.
 
 ## Setup
 
@@ -46,7 +51,7 @@ Currently supports:
 2. **Install Dependencies**:
    ```bash
    pip install uv
-   uv sync
+   uv sync --locked --no-dev --python 3.12
    ```
 
 3. **Configure Environment**:
@@ -67,16 +72,26 @@ Currently supports:
 4. **Run the Bot**:
    ```bash
    # Starts the bot by default
-   python main.py
+   uv run --locked --no-dev python main.py
    ```
 
 ## Testing
 
-Run the test suite to verify functionality:
+Run offline integration and moderation tests (no Telegram calls or model downloads):
 
 ```bash
-python test_bot.py
+uv run --locked --no-dev python -m unittest discover -s tests -v
 ```
+
+Run a smoke check with the real transformer weights and a temporary SQLite database:
+
+```bash
+uv run --locked --no-dev python test_bot.py
+```
+
+The first smoke run downloads the model. Both commands must exit with status `0`;
+the smoke check prints `All tests passed!` and fails on invalid probabilities or
+model/database errors. These examples do not measure classification accuracy.
 
 ## Bot Permissions
 
@@ -96,8 +111,49 @@ The bot creates a local SQLite database (`bot_messages.db`) to store:
 
 ## Model
 
-Uses a pre-trained FastText model for spam detection located at:
-`dialogue_kitogram/data/antispam.bin`
+The runtime uses `BertSpamModel` from
+[`spam-detector[transformers]` v0.2.0](https://github.com/benzlokzik/spam-detector/releases/tag/v0.2.0),
+locked to commit `00b0474db3e79556d8d951f1287801f1ccdc06b4` in `uv.lock`.
+It loads the trained Russian-language
+[`benzlokzik/spam-detector-bert`](https://huggingface.co/benzlokzik/spam-detector-bert)
+weights, pinned to revision `3dd73bd4dcff411d44e1bc1a8e90d0568ca04395`.
+
+- `SPAM_MODEL_ID` and `SPAM_MODEL_REVISION` override the repository and revision;
+  change both together when switching repositories.
+- The first startup downloads approximately 117 MB of weights plus tokenizer files.
+  Subsequent starts reuse the Hugging Face cache (`HF_HOME` can override its location).
+  With a complete cache, `HF_HUB_OFFLINE=1` prevents Hub network requests.
+- Loading failure stops startup. There is no automatic fallback to FastText.
+- Upstream inference truncates text to 128 tokens and returns the probability of
+  class `1` (spam). GPU selection is automatic when available; Linux dependencies
+  use the CPU-only PyTorch index for the droplet.
+- The legacy FastText code and training files remain available for experiments:
+  `uv sync --locked --group fasttext`. They are not used by the bot. Training data
+  are excluded from the runtime image.
+
+## Docker deployment
+
+After review approval, update the server checkout to the approved commit. Keep its
+existing `.env`, `bot_messages.db`, and `logs/`; no database migration is required.
+On a fresh installation, create the database file with `touch bot_messages.db`
+before starting Compose so the bind mount is a file.
+
+```bash
+docker compose build bot
+# Download/cache and load BERT before replacing the running bot.
+docker compose run --rm --no-deps bot /app/.venv/bin/python -c \
+  'from dialogue_kitogram.src.spam_model import load_spam_model; print(load_spam_model().predict_proba("Привет! Как дела?"))'
+docker compose up -d --no-deps bot
+docker compose ps
+docker compose logs --tail=100 bot
+```
+
+The preflight must exit `0` and print a probability in `[0, 1]`. Startup logs must
+show `BERT spam model loaded` and `Starting bot...`, with no restart loop. The
+`model-cache` named volume preserves downloaded weights across container rebuilds;
+keep it when stopping the stack. Reserve memory for PyTorch and the transformer
+in addition to the bot, and verify actual memory use on the target droplet.
+
 ## Admins and Allowed Chats
 
 - Set admin Telegram user IDs via environment variable:
@@ -116,5 +172,3 @@ Uses a pre-trained FastText model for spam detection located at:
     - `/allowed` — list allowed chats
 
 Non-admin DMs receive a brief notice to contact an admin.
-
-The model was trained on Russian/English spam detection datasets and achieves high accuracy in distinguishing between human and bot-generated content.

@@ -1,6 +1,7 @@
 """Test script for the spam detection functionality."""
 
 import asyncio
+import math
 import tempfile
 from pathlib import Path
 
@@ -8,7 +9,7 @@ from loguru import logger
 
 from dialogue_kitogram.src import log_config  # noqa: F401
 from dialogue_kitogram.src.bot_database import BotMessageDatabase
-from dialogue_kitogram.src.fastspam.ft_model import FastTextSpamModel, ModelConfig
+from dialogue_kitogram.src.spam_model import load_spam_model
 
 # Constants
 SPAM_THRESHOLD = 0.95
@@ -19,15 +20,7 @@ async def test_spam_detection() -> bool:
     """Test the spam detection model."""
     logger.info("Testing spam detection model...")
 
-    # Initialize model
-    cfg = ModelConfig()
-    model = FastTextSpamModel(cfg)
-
-    if not cfg.model_path.exists():
-        logger.error(f"Model file not found at {cfg.model_path}")
-        return False
-
-    model.load()
+    model = load_spam_model()
     logger.success("Model loaded successfully")
 
     # Test with various messages
@@ -43,7 +36,12 @@ async def test_spam_detection() -> bool:
     logger.info("Testing different message types:")
     for message, description in test_messages:
         probability = model.predict_proba(message)
-        status = "🔴 BOT (would delete)" if probability > SPAM_THRESHOLD else "🟢 HUMAN"
+        if not math.isfinite(probability) or not 0.0 <= probability <= 1.0:
+            logger.error("Invalid spam probability: {}", probability)
+            return False
+        status = (
+            "Above raw threshold" if probability > SPAM_THRESHOLD else "Below threshold"
+        )
         logger.info(f"{status} {description}: {probability:.3f} - '{message[:50]}...'")
 
     return True
@@ -89,7 +87,7 @@ async def test_database() -> bool:
         Path(test_db_path).unlink(missing_ok=True)
 
 
-async def main() -> None:
+async def main() -> int:
     """Run all tests."""
     logger.info("🧪 Running tests for Telegram Admin Bot")
 
@@ -114,10 +112,11 @@ async def main() -> None:
         logger.info("To run the bot:")
         logger.info("1. Get a bot token from @BotFather on Telegram")
         logger.info("2. Copy .env.example to .env and set your bot token")
-        logger.info("3. Run: python main.py")
+        logger.info("3. Run: uv run --locked --no-dev python main.py")
     else:
         logger.error("Some tests failed!")
+    return 0 if success else 1
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(asyncio.run(main()))

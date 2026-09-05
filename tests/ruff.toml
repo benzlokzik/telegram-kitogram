@@ -1,0 +1,5 @@
+extend = "../pyproject.toml"
+
+[lint]
+# These tests use stdlib unittest and exercise internal moderation methods.
+extend-ignore = ["PT009", "PT027", "SLF001"]
