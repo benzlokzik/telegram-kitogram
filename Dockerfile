@@ -7,29 +7,27 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_NO_PROGRESS=1 \
     UV_NO_WRAP=1 \
-    CCACHE_MAXSIZE=500M
+    HF_HOME=/app/runtime/huggingface \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1
 
 WORKDIR /app
 
-# System deps for building native extensions (e.g., fasttext)
+# Git installs the pinned spam-detector release; libgomp supports CPU PyTorch.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
  apt-get update \
  && apt-get install -y --no-install-recommends \
-    build-essential \
-    cmake \
     git \
-    g++-14 \
-    ccache \
-    python3-dev \
-    --fix-missing \
+    ca-certificates \
+    libgomp1 \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy project metadata first for better layer caching
 COPY pyproject.toml uv.lock README.md ./
 
 # Install dependencies into a project-local virtualenv (.venv)
-RUN uv sync --frozen --no-dev
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev
 
 # Copy source code
 COPY dialogue_kitogram ./dialogue_kitogram
@@ -38,5 +36,5 @@ COPY main.py ./
 # Ensure log directories exist (host volume may override)
 RUN mkdir -p /app/logs /app/runtime
 
-# Default command: run via uv to use the synced virtualenv
-CMD ["uv", "run", "main.py"]
+# Use installed dependencies without resolving or installing at startup.
+CMD ["/app/.venv/bin/python", "main.py"]
