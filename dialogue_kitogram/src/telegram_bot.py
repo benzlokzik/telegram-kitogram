@@ -1,6 +1,7 @@
 """Telegram bot for detecting and deleting bot messages using spam detection."""
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatType
@@ -8,13 +9,14 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from loguru import logger
 
-from dialogue_kitogram.src.fastspam.ft_model import FastTextSpamModel, ModelConfig
+from dialogue_kitogram.src.spam_model import load_spam_model
 
 from .bot_database import BotMessageDatabase
 from .config import get_admin_user_ids, get_spam_threshold, get_telegram_token
 
 # TODO: make configurable via env
 MIN_WORD_COUNT_FOR_SPAM_CHECK = 5
+MAX_CONCURRENT_UPDATES = 32
 
 
 class SpamDetectionBot:
@@ -27,9 +29,11 @@ class SpamDetectionBot:
         self.db = BotMessageDatabase()
 
         # Initialize spam detection model
-        cfg = ModelConfig()
-        self.spam_model = FastTextSpamModel(cfg)
-        self.spam_model.load()
+        self.spam_model = load_spam_model()
+        self._model_executor = ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="spam-inference",
+        )
 
         # Setup handlers
         self._setup_handlers()
@@ -188,7 +192,7 @@ class SpamDetectionBot:
                 # Compute original spam probability for the replied message
                 replied_text = replied.text or replied.caption or ""
                 replied_spam_probability = (
-                    self.spam_model.predict_proba(replied_text)
+                    await self._predict_spam_probability(replied_text)
                     if "\n" in replied_text.strip()
                     or len(replied_text.strip().split()) > MIN_WORD_COUNT_FOR_SPAM_CHECK
                     else 0.0
@@ -247,6 +251,14 @@ class SpamDetectionBot:
                 message.chat.type,
             )
 
+    async def _predict_spam_probability(self, text: str) -> float:
+        """Keep inference off the event loop and serialized, even after cancellation."""
+        return await asyncio.get_running_loop().run_in_executor(
+            self._model_executor,
+            self.spam_model.predict_proba,
+            text,
+        )
+
     async def _check_and_handle_message(self, message: Message) -> None:
         """Check message for spam and handle accordingly."""
         try:
@@ -261,7 +273,7 @@ class SpamDetectionBot:
                 return
 
             # Get spam probability
-            spam_probability = self.spam_model.predict_proba(text_content)
+            spam_probability = await self._predict_spam_probability(text_content)
             if "\n" in text_content:
                 spam_probability -= 0.1
             if len(text_content.split()) > MIN_WORD_COUNT_FOR_SPAM_CHECK:
@@ -306,12 +318,22 @@ class SpamDetectionBot:
         logger.info("Bot database initialized")
 
         logger.info("Starting bot...")
-        await self.dp.start_polling(self.bot)
+        await self.dp.start_polling(
+            self.bot,
+            tasks_concurrency_limit=MAX_CONCURRENT_UPDATES,
+        )
 
     async def stop(self) -> None:
         """Stop the bot."""
         logger.info("Stopping bot...")
-        await self.bot.session.close()
+        try:
+            await asyncio.to_thread(
+                self._model_executor.shutdown,
+                wait=True,
+                cancel_futures=True,
+            )
+        finally:
+            await self.bot.session.close()
 
 
 async def main() -> None:

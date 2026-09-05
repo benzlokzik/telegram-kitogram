@@ -34,6 +34,21 @@ def get_spam_threshold() -> float:
         return 0.95
 
 
+def get_spam_model_id() -> str:
+    """Get the Hugging Face repository containing the trained BERT model."""
+    load_config()
+    return os.getenv("SPAM_MODEL_ID", "benzlokzik/spam-detector-bert")
+
+
+def get_spam_model_revision() -> str:
+    """Pin model weights independently of the spam-detector package version."""
+    load_config()
+    return os.getenv(
+        "SPAM_MODEL_REVISION",
+        "3dd73bd4dcff411d44e1bc1a8e90d0568ca04395",
+    )
+
+
 def get_db_path() -> str:
     """Get database path from environment."""
     load_config()
