@@ -14,5 +14,8 @@ services:
     volumes:
       - ./bot_messages.db:/app/bot_messages.db
       - ./logs:/app/logs
-      - ./dialogue_kitogram/data:/app/dialogue_kitogram/data:ro
+      - model-cache:/app/runtime/huggingface
     restart: unless-stopped
+
+volumes:
+  model-cache:
